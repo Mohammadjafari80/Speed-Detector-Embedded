@@ -4,7 +4,7 @@ import statistics
 
 #### Define program constants
 trigger_pin=4    # the GPIO pin that is set to high to send an ultrasonic wave out. (output)
-echo_pin=5      # the GPIO pin that indicates a returning ultrasonic wave when it is set to high (input)
+echo_pin=17      # the GPIO pin that indicates a returning ultrasonic wave when it is set to high (input)
 number_of_samples=5 # this is the number of times the sensor tests the distance and then picks the middle value to return
 sample_sleep = .01  # amount of time in seconds that the system sleeps before sending another sample request to the sensor. You can try this at .05 if your measurements aren't good, or try it at 005 if you want faster sampling.
 calibration1 = 30   # the distance the sensor was calibrated at
@@ -63,7 +63,13 @@ def check_distance():
         time.sleep(sample_sleep)          # Pause to make sure we don't overload the sensor with requests and allow the noise to die down
 
     # returns the media distance calculation
-    return (statistics.median(samples_list)*1000000*calibration1/calibration2)
+    
+    # Capture the current time
+    measurement_time = time.monotonic()
+
+    # Calculate and return distance and the current time
+    distance = (statistics.median(samples_list)*1000000*calibration1/calibration2)
+    return distance, measurement_time
 
 ###########################
 # Main Program
@@ -71,5 +77,18 @@ def check_distance():
 
 GPIO.add_event_detect(echo_pin, GPIO.BOTH, callback=timer_call)  # add rising and falling edge detection on echo_pin (input)
 
-for i in range(1000): # check the distance 100 times
-    print(round(check_distance(), 1)) # print out the distance rounded to one decimal place
+previous_distance, previous_time = check_distance()
+previous_speed = 0
+
+for i in range(1000):
+    distance, current_time = check_distance()
+    time_interval = current_time - previous_time
+    speed = (distance - previous_distance) / time_interval
+    acceleration = (speed - previous_speed) / time_interval
+
+    print(f"Distance: {round(distance, 1)} cm, Speed: {speed:.2f} cm/s, Acceleration: {acceleration:.2f} cm/s²")
+
+    previous_distance = distance
+    previous_time = current_time
+    previous_speed = speed
+    time.sleep(sample_sleep)
