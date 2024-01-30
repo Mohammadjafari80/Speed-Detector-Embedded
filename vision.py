@@ -280,7 +280,7 @@ def read_source_points(file_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Background extraction and point tracking with OpenCV.")
-    parser.add_argument("--camera_id", type=str, help="Camera ID or URL", default='http://192.168.100.235:8080/video')
+    parser.add_argument("--camera_id", type=str, help="Camera ID or URL", default='http://172.27.55.82:8080/video')
     parser.add_argument("--scale_factor", type=float, default=1, help="Scale factor for resizing frames")
     parser.add_argument("--num_frames", type=int, default=5, help="Number of frames for background calculation")
     parser.add_argument("--threshold", type=float, default=40.0, help="Threshold for frame processing")
@@ -335,7 +335,7 @@ def main():
             # Draw centroid with the median color of its contour
             # cv2.circle(frame, centroid_info['original_position'], 5, (0, 0, 255), -1)
             # Display speed
-            speed_text = f"{centroid_info['total_distance']:.1f} m/s"
+            speed_text = f"{centroid_info['speed']:.1f} m/s"
             print(speed_text)
             text_position = (centroid_info['original_position'][0] + 5, centroid_info['original_position'][1])
             # cv2.putText(frame, speed_text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)

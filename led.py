@@ -6,7 +6,7 @@ GPIO.setmode(GPIO.BCM)
 
 # Set the GPIO pin to which the LED is connected (via a resistor)
 LED_PIN_RED = 18
-LED_PIN_GREEN = 27
+LED_PIN_GREEN = 22
 
 # Set up the GPIO pin as an output
 GPIO.setup(LED_PIN_RED, GPIO.OUT)
