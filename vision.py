@@ -1,5 +1,8 @@
+from time import sleep
 import cv2
 import numpy as np
+import argparse
+from scipy.optimize import linear_sum_assignment
 
 camera_id = 'http://192.168.100.235:8080/video'
 
@@ -33,22 +36,10 @@ def extract_background(camera_id, scale_factor, num_frames=5):
         # Convert median frame back to BGR
         background_bgr = cv2.cvtColor(median_frame, cv2.COLOR_RGB2BGR)
 
-        # Display the background
-        cv2.imshow("Extracted Background", background_bgr)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
         return background_bgr
     else:
         print("Insufficient frames captured for background extraction.")
         return None
-
-# Replace with your camera ID and scale factor
-background = extract_background(camera_id, 1)
-
-# Optional: Save the background image
-if background is not None:
-    cv2.imwrite("background.jpg", background)
 
 
 def select_points(event, x, y, flags, param):
@@ -59,47 +50,6 @@ def select_points(event, x, y, flags, param):
         if len(src_points) >= 2:
             cv2.line(drawing_frame, src_points[-2], src_points[-1], (0, 255, 0), 2)
         cv2.imshow("Frame", drawing_frame)
-
-cap = cv2.VideoCapture(camera_id)
-cv2.namedWindow("Frame")
-cv2.setMouseCallback("Frame", select_points)
-
-src_points = []
-
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    # Create a copy of the frame to draw on
-    drawing_frame = frame.copy()
-
-    # Draw existing points and lines
-    for point in src_points:
-        cv2.circle(drawing_frame, point, 5, (0, 0, 255), -1)
-    for i in range(1, len(src_points)):
-        cv2.line(drawing_frame, src_points[i-1], src_points[i], (0, 255, 0), 2)
-
-    cv2.imshow("Frame", drawing_frame)
-
-    if len(src_points) >= 4 or cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-
-print(src_points)
-src_points = [(y,x) for (x,y) in src_points]
-print(src_points)
-cap.release()
-cv2.destroyAllWindows()
-
-
-src_points = np.float32(src_points)
-width = 21
-height = 29.7
-dst_points = np.float32([[0, 0], [0, width], [height, width], [height, 0]])
-
-# Calculate the transformation matrix
-transformation_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
 
 
 def select_additional_points_and_calculate_distance(transformation_matrix):
@@ -154,58 +104,6 @@ def select_additional_points_and_calculate_distance(transformation_matrix):
     cv2.destroyAllWindows()
 
 
-# select_additional_points_and_calculate_distance(transformation_matrix)
-
-
-##############################
-
-# def find_contours_and_draw_mask(current_frame, background_frame):
-#     # Convert both images to grayscale
-#     gray_current = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-#     gray_background = cv2.cvtColor(background_frame, cv2.COLOR_BGR2GRAY)
-
-#     # Compute the absolute difference
-#     difference = cv2.absdiff(gray_current, gray_background)
-
-#     # Thresholding to get the foreground mask
-#     _, thresh = cv2.threshold(difference, 30, 255, cv2.THRESH_BINARY)
-
-#     # Find contours
-#     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-#     # Draw red mask for each contour and mark center
-#     for contour in contours:
-#         if cv2.contourArea(contour) > 100:  # filter out very small contours
-#             # Draw red mask
-#             cv2.drawContours(current_frame, [contour], -1, (0, 0, 255), -1)
-
-#             # Calculate and draw center point
-#             M = cv2.moments(contour)
-#             if M["m00"] != 0:
-#                 cx = int(M["m10"] / M["m00"])
-#                 cy = int(M["m01"] / M["m00"])
-#                 cv2.circle(current_frame, (cx, cy), 5, (255, 255, 255), -1)
-
-#     return current_frame
-
-# cap = cv2.VideoCapture(camera_id)
-# while True:
-#     ret, frame = cap.read()
-#     if not ret:
-#         break
-
-#     # Process the frame
-#     processed_frame = find_contours_and_draw_mask(frame, background)
-
-#     # Show the result
-#     cv2.imshow("Processed Frame", processed_frame)
-
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()
-
 def process_frame(current_frame, background_frame, threshold, min_area):
     # Compute the absolute difference between the current frame and the background
     difference = cv2.absdiff(current_frame, background_frame)
@@ -226,12 +124,12 @@ def process_frame(current_frame, background_frame, threshold, min_area):
                 mask = np.zeros_like(gray)
                 cv2.drawContours(mask, [contour], -1, 255, -1)
                 mask_3_channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-                current_frame = 0.8 * current_frame + 0.2 * mask_3_channel
+                # current_frame = 0.8 * current_frame + 0.2 * mask_3_channel
                 # cv2.drawContours(current_frame, [contour], -1, (0, 0, 255), -1)
                 mean_color = cv2.mean(current_frame, mask=mask)[:3]
                 centroids.append((cx, cy))
                 centroid_colors.append(mean_color)
-                cv2.circle(current_frame, (cx, cy), 5, mean_color, -1)
+                # cv2.circle(current_frame, (cx, cy), 5, mean_color, -1)
 
     return centroids, centroid_colors
 
@@ -253,9 +151,6 @@ def predict_centroid_position(last_known_position, last_known_velocity):
                           last_known_position[1] + last_known_velocity[1])
     return predicted_position
 
-
-from scipy.optimize import linear_sum_assignment
-import numpy as np
 
 def track_and_calculate_speed_old(current_centroids, previous_centroids, transformation_matrix, fps, max_distance):
     if not previous_centroids:
@@ -372,42 +267,90 @@ def track_and_calculate_speed(current_centroids, previous_centroids, transformat
 
     return updated_centroids
 
-cap = cv2.VideoCapture(camera_id)
-fps = cap.get(cv2.CAP_PROP_FPS)
-print(fps)
-previous_centroids = []
 
-threshold = 40.0
-min_area = 150
-max_distance = 10
+def read_source_points(file_path):
+    points = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            x, y = line.strip().split(',')
+            points.append((float(x), float(y)))
+    return np.float32(points)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
 
-    # Resize the frame and process it
-    current_centroids, centroid_colors = process_frame(frame, background, threshold, min_area)
-    tracked_centroids = track_and_calculate_speed_old(current_centroids, previous_centroids, transformation_matrix, fps, max_distance)
 
-    # Visualization
-    # print(tracked_centroids)
-    for centroid_info, centroid_color in zip(tracked_centroids, centroid_colors):
-        # Draw centroid with the median color of its contour
-        cv2.circle(frame, centroid_info['original_position'], 5, (0, 0, 255), -1)
-        # Display speed
-        speed_text = f"{centroid_info['total_distance']:.1f} m/s"
-        text_position = (centroid_info['original_position'][0] + 5, centroid_info['original_position'][1])
-        cv2.putText(frame, speed_text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+def main():
+    parser = argparse.ArgumentParser(description="Background extraction and point tracking with OpenCV.")
+    parser.add_argument("--camera_id", type=str, help="Camera ID or URL", default='http://192.168.100.235:8080/video')
+    parser.add_argument("--scale_factor", type=float, default=1, help="Scale factor for resizing frames")
+    parser.add_argument("--num_frames", type=int, default=5, help="Number of frames for background calculation")
+    parser.add_argument("--threshold", type=float, default=40.0, help="Threshold for frame processing")
+    parser.add_argument("--min_area", type=int, default=100, help="Minimum area for contour detection")
+    parser.add_argument("--max_distance", type=float, default=20.0, help="Maximum distance for tracking centroids")
+    parser.add_argument("--src_points_path", type=str, help="Path to the text file containing source points", default='./src_points.txt')
 
-    # Display the processed frame
-    cv2.imshow("Processed Frame", frame)
+    args = parser.parse_args()
 
-    # Update previous_centroids for the next frame
-    previous_centroids = tracked_centroids
+    camera_id = args.camera_id
+    scale_factor = args.scale_factor
+    num_frames = args.num_frames
+    threshold = args.threshold
+    min_area = args.min_area
+    max_distance = args.max_distance
+    src_points_path = args.src_points_path
+    
+    # Replace with your camera ID and scale factor
+    background = extract_background(camera_id, 1, num_frames)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # Optional: Save the background image
+    if background is not None:
+        cv2.imwrite("background.jpg", background)
 
-cap.release()
-cv2.destroyAllWindows()
+
+    src_points = read_source_points(src_points_path)
+    print(src_points)
+    
+    width = 21
+    height = 29.7
+    dst_points = np.float32([[0, 0], [0, width], [height, width], [height, 0]])
+
+    # Calculate the transformation matrix
+    transformation_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+    print(transformation_matrix)
+    cap = cv2.VideoCapture(camera_id)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    previous_centroids = []
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Resize the frame and process it
+        current_centroids, centroid_colors = process_frame(frame, background, threshold, min_area)
+        tracked_centroids = track_and_calculate_speed_old(current_centroids, previous_centroids, transformation_matrix, fps, max_distance)
+
+        # Visualization
+        # print(tracked_centroids)
+        for centroid_info, centroid_color in zip(tracked_centroids, centroid_colors):
+            # Draw centroid with the median color of its contour
+            # cv2.circle(frame, centroid_info['original_position'], 5, (0, 0, 255), -1)
+            # Display speed
+            speed_text = f"{centroid_info['total_distance']:.1f} m/s"
+            print(speed_text)
+            text_position = (centroid_info['original_position'][0] + 5, centroid_info['original_position'][1])
+            # cv2.putText(frame, speed_text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+        # Display the processed frame
+    #     cv2.imshow("Processed Frame", frame)
+
+    #     # Update previous_centroids for the next frame
+        previous_centroids = tracked_centroids
+
+    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #         break
+
+    # cap.release()
+    # cv2.destroyAllWindows()
+    
+if __name__ == "__main__":
+    main()
