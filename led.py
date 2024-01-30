@@ -5,28 +5,18 @@ import time
 GPIO.setmode(GPIO.BCM)
 
 # Set the GPIO pin to which the LED is connected (via a resistor)
-LED_PIN = 18
+LED_PIN_RED = 18
+LED_PIN_GREEN = 27
 
 # Set up the GPIO pin as an output
-GPIO.setup(LED_PIN, GPIO.OUT)
+GPIO.setup(LED_PIN_RED, GPIO.OUT)
+GPIO.setup(LED_PIN_GREEN, GPIO.OUT)
 
-try:
-    while True:
-        # Turn off the LED by setting the GPIO pin to HIGH
-        # Because it's connected to 3.3V, setting it to HIGH will turn it off
-        GPIO.output(LED_PIN, GPIO.HIGH)
-        print("LED OFF")
-        time.sleep(1)  # LED will stay off for 1 second
 
-        # Turn on the LED by setting the GPIO pin to LOW
-        # This will create a circuit through ground and light up the LED
-        GPIO.output(LED_PIN, GPIO.LOW)
-        print("LED ON")
-        time.sleep(1)  # LED will stay on for 1 second
+def turn_led_on(gp: int):
+    GPIO.output(gp, GPIO.HIGH)
+    print("LED OFF")
 
-except KeyboardInterrupt:
-    # Clean up the GPIO on CTRL+C exit
-    GPIO.cleanup()
-
-# Clean up the GPIO on normal exit
-GPIO.cleanup()
+def turn_led_off(gp: int):
+    GPIO.output(gp, GPIO.LOW)
+    print("LED ON")

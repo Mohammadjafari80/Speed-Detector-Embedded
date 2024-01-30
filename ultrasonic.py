@@ -19,6 +19,16 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(trigger_pin, GPIO.OUT)
 GPIO.setup(echo_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
+# Set up the LED GPIO pins
+LED_PIN_FAST = 18  # LED to turn on when speed is greater than 20
+LED_PIN_SLOW = 27  # LED to turn on when speed is 20 or less
+
+SPEED_TRESHOLD = 20
+
+# Set up the LED pins for output
+GPIO.setup(LED_PIN_FAST, GPIO.OUT)
+GPIO.setup(LED_PIN_SLOW, GPIO.OUT)
+
 #### initialize variables
 samples_list = [] #type: list # list of data collected from sensor which are averaged for each measurement
 stack = []
@@ -88,6 +98,14 @@ for i in range(1000):
 
     print(f"Distance: {round(distance, 1)} cm, Speed: {speed:.2f} cm/s, Acceleration: {acceleration:.2f} cm/s²")
 
+    # Check the speed and turn on the appropriate LED
+    if speed > SPEED_TRESHOLD:
+        GPIO.output(LED_PIN_FAST, GPIO.HIGH)  # Turn on the LED on GPIO 18
+        GPIO.output(LED_PIN_SLOW, GPIO.LOW)   # Turn off the LED on GPIO 27
+    else:
+        GPIO.output(LED_PIN_FAST, GPIO.LOW)   # Turn off the LED on GPIO 18
+        GPIO.output(LED_PIN_SLOW, GPIO.HIGH)  # Turn on the LED on GPIO 27
+        
     previous_distance = distance
     previous_time = current_time
     previous_speed = speed
